@@ -1,0 +1,1812 @@
+//BOOLEAN GLOBAL VARIABLES
+var g_bInitialized = false; // when true the working dir has been created and/or been emptied and we are ready to start some opening or image acquisition
+var g_bStackOpened = false;
+var g_bStackBeingCreated = false;
+var g_bCaseStudyInitiated = false;
+
+var g_NumberInStack = 0;
+var g_min = 0
+var g_max = 128;
+
+
+var g_DirKI67_StackTemp; //to store different stack images
+var g_DirKI67_SingleTemp; //to store individual image forming a given stack
+var g_DirKI67_BasicParameters; //to store white image black image etc..
+
+//stacknames et other individual names
+var g_filename; //current case
+var g_rgbstackname = "rgbStack.tif";
+var g_keratstackname = "keratStack.tif";
+var g_dabstackname = "dabStack.tif";
+var g_keratBINstackname = "keratBinStack.tif";
+var g_inverseSatName = "InverseSaturationStack.tif";
+var g_BrightnessName = "BrightnessStack.tif";
+var g_NucleiKI67MaskName = "NucleiKI67Stack.tif";
+
+var g_sample = "sample_";
+var g_TumourMaskDraft1Name = "tumourmaskDraft1.tif"; //with Hole and with stromal contamination
+var g_TumourMaskDraft2Name = "tumourmaskDraft2.tif"; //NO Hole and with stromal contamination
+var g_TumourMaskFinal = "tumourmaskFinal.tif"; //NO Hole and NO stromal contamination
+var g_CompositeName = "composite.tif"; // Tumour mask and nuclei - composite
+
+var g_DirParameters;
+var g_boolean_parameters_loaded = false;
+
+
+var g_BetaDevelopment = false;
+
+//Unit vectors values matching original HemaHarris_DAB_CCI
+
+var gR1default = 0.24749513;
+var gG1default = 0.5142569;
+var gB1default = 0.82114923;
+var gR2default = 0.16077608;
+var gG2default = 0.73738563;
+var gB2default = 0.656059;
+var gR3default = 0.00749458;
+var gG3default = 0.0073136543;
+var gB3default = 0.99994516;
+
+var gR1;
+var gG1;
+var gB1;
+var gR2;
+var gG2;
+var gB2;
+var gR3;
+var gG3;
+var gB3;
+
+var gUnitVectorsStatus;
+
+//
+var gAccessionNumber = "HR13-XXXX";
+var gLastName = "nil";
+var g_boolean_parameters_loaded = false;
+var gPatientRoot;
+var gResultRoot;
+var gOperator;
+var gTumourTarget = "Periphery";
+
+macro "AutoRun" {
+	requires("1.49t"); //requires minimally imagej 1.49t especially for Plot functions
+
+	gUnitVectorsStatus = call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.status", "not determined");
+	if (gUnitVectorsStatus == "not determined")
+	{
+	setDeconvolutionVectorsFromDefault();	
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.status", "determined");
+	call("ij.Prefs.savePreferences"); // save preferences now
+	}
+	else
+	{
+	setDeconvolutionVectorsFromPrefs();	
+	}
+		
+	close_auxiliary_windows();
+	initialize();	
+}
+
+
+
+macro "Unused Tool-1 - " {}  // leave slot between text tool and magnifying glass unused
+
+var settingsMenuChoices= newArray ("Add image","-","Remove most recent image","-","Save all images as stack","-","White Field","-","Black Field");
+var dCmds = newMenu("Stack creation Menu Tool",settingsMenuChoices);
+macro "Stack creation Menu Tool - C111D7eD8eDb4Dc4CaaaD6fD9fC455D76CdddD3dD87Dc1C333D14D56DbcCbbcD03D06D08D9aDa9De2C888D05C222D45D55D9eDadC8acDa8C788D37CeeeD30Dd1DdcDf2DfbC444D5dD7dCbcdDc8C999D17D1bD3cD6cD9cC111D6eDbdCaaaD2cDe8Df8Df9C667D41CddeD98C334Dc2CcccD60C999D4eD7fD8fC333D5eDe4CbbbD09DafDcdDfaC888D1aD28D2bD3bD48D4bD4cD5cDd5CfffD0cD2dD3eD4fDecC444D4dDb5CbcdDb7C999DccDf3C111Da4Db3Dc3Dd3CaaaD69D6aD6bDf7C556D13D81CdddD99C334D24D34D44D54D83D92D9dCbccD07D0aD7bDa6Dd6Dd9C899D16D18D58D59D5aD5bDa1C223D65CbbbD77DdaDe7De9C888D29D2aD38D39D3aD47D49D4aC445D32D52D61D62D71CccdD50D79D7aDc6C999D67D96C122D94CabbDe6C777Dd2CeeeD40D89D90DbfDceC344D23D33D43D53D63D82CcccDabDcaC233D64D74D75D84D93CbbcD12CcddD8bD9bDb6DbaC9aaDdbDeaCaaaD68D7cDcbDf5Df6C555D6dCdddD1cD21D8aC333D15D66C889D57C222De3CbbbDbbDc9Dd8C345D42D72CcccD5fD70DaaC112D95Dd4C677D26D91CdeeD0bD88D97C344D46D73CcccD78CcddDa7C99aD31De5C666D86DacCdddD80C233D8dDa2Da5DaeC222D25D85Da3CbbbDb1Db9DebC778D04D27CbcdDb8Dd7C9aaD8cC455D51CacdDc7C667Dc5C223Db2C122D35C777Df4C555D36C889D19C677D22C666Dbe"{
+	cmd = getArgument();
+	if (cmd!="-" && cmd == "Add image")
+		{
+			
+			
+		bGoAhead = false;
+			
+		if(g_bCaseStudyInitiated)
+			{
+				bGoAhead = getBoolean("A Case has been initiated but not finalized .... reset and keep on?");
+				initialize();
+			}
+		else
+			{
+				bGoAhead = true;				
+			}			
+			
+			
+			
+		if(!g_bInitialized && bGoAhead) initialize();
+		if(g_bInitialized && bGoAhead)
+			{
+			cleanUp_Windows();	
+			run("AcquireQCam ");
+			saveAs("Tiff", g_DirKI67_BasicParameters+"specimen.tif");
+			close();
+			setBatchMode(true);
+			open(g_DirKI67_BasicParameters+"specimen.tif");
+			open(g_DirKI67_BasicParameters+"white.tif");
+			open(g_DirKI67_BasicParameters+"black.tif");
+			run("Image Calculator...", "image1=white.tif operation=Subtract image2=black.tif create");
+			rename("divisor");
+			run("Image Calculator...", "image1=specimen.tif operation=Subtract image2=black.tif create");
+			rename("numerator");
+			run("Calculator Plus", "i1=numerator i2=divisor operation=[Divide: i2 = (i1/i2) x k1 + k2] k1=255 k2=0 create");
+			setBatchMode(false);
+			selectImage("Result");
+			saveAs("Tiff", g_DirKI67_BasicParameters+"sample"+g_NumberInStack+".tif");
+			//cleanUp_Windows();
+			g_NumberInStack++;
+			}
+		}
+	if (cmd!="-" && cmd == "Remove most recent image")
+		{
+		if(!g_bInitialized) initialize();	
+		if(g_NumberInStack > 0)
+			{
+			Dialog.create("Delete");
+			Dialog.addMessage("Agree to delete last sample");
+			Dialog.show();
+			g_NumberInStack--;
+			}
+		else
+			{	
+			warning("There is no sample to delete");
+			}
+		
+		}
+	if (cmd!="-" && cmd == "Save all images as stack")
+		{	
+			if(!g_bInitialized) initialize();
+			cleanUp_Windows();	
+			if(!g_bInitialized) initialize();
+			if(g_NumberInStack > 1)
+			{	
+				Dialog.create("Saving");
+				Dialog.addMessage("Creating and saving stack of your samples");
+				Dialog.addString("Accession number:", gAccessionNumber);
+				
+				Dialog.show();
+				gAccessionNumber = Dialog.getString();
+				
+				for(i=0;i<g_NumberInStack;i++)
+				{	
+					//print("coucou");
+					open(g_DirKI67_BasicParameters+"sample"+i+".tif");
+					//print("allo");
+					//exit();
+				}
+				
+				run("Images to Stack", "name=Stack title=[] use");
+				
+				saveAs("Tiff", gPatientRoot+gAccessionNumber);
+				initialize(); //reset
+				
+				
+				
+			}
+			else
+			{
+				warning("You need at least 2 samples to build a stack");	
+			}
+		
+		}
+	if (cmd!="-" && cmd == "White Field")
+		{
+		if(!g_bInitialized) initialize();
+		run("AcquireQCam ");
+		saveAs("Tiff", g_DirKI67_BasicParameters+"white.tif");
+		close();
+		
+		
+		}
+	if (cmd!="-" && cmd == "Black Field")
+		{
+		if(!g_bInitialized) initialize();
+		run("AcquireQCam ");
+		saveAs("Tiff", g_DirKI67_BasicParameters+"black.tif");
+		close();
+		
+		
+		}		
+		
+	
+}
+
+
+
+macro "Opening Stack Action Tool - Cb31D2cD4aD59D68Cfb0D77D87D88D97D98Da7Da8Db7Db8Dc7Dc8Ce81D3cD4bD5aD69Cfc0D2eD3dD4cD5bD6aD79Dd8Cc41D39D57Cfc0D73D83Cd84D0dCfc5D1cD2bCc31D1dCfc0D75D76D78D85D86D95D96Da5Da6Db6Dc6Dd5Dd6Dd7De5De6Ce81D1eD2dCfc1Db5Cd71D63De8Df5Df6Cfc0D74D84D94Da4Cd96Dd0Cfe5De3Cb31D3bD3fD4eD5dD66D6cD7bCd72D5cCc51D0fCeb3D89Cfe5D92Da2Cc41D1bD2aD48Cd93De7Df4Cfe5D91Da1Db1Dc1Cd61D0eCea7Db0Ceb8De1Cb31D8aCc41Dc9Dd9Cea4D3eCfd5D3aD49D58D67Cd92Dc2Cfd2Da3Cda7Dc0Cfe5De2Cd83D2fCc51Da9Db9Ceb4Db2Dd4Cea3D6bCc52D64D65Ceb7D81Da0Cff7Dd1Cd85Df2Df3Cfd1D93Cd96D90Cd72Dd2Dd3Cc51D99Cea4D7aCfe7D82Cd83D1fCfd3Dc5Cea7D62D71Cfe6De4Ce93D4dCfeaD72"{
+	
+		
+			bGoAhead = false;
+			
+			if(g_bCaseStudyInitiated)
+			{
+				bGoAhead = getBoolean("A Case has been initiated but not finalized .... keep on?");	
+			}
+			else
+			{
+				bGoAhead = true;				
+			}
+			
+			if(bGoAhead)
+			{
+					
+				initialize();
+				//cleanUp_Windows();
+				if (isOpen("KI67-TUMOUR Area V/V")) {
+					selectWindow("KI67-TUMOUR Area V/V");
+					run("Close");
+				}
+
+				setBatchMode(false);
+				open();
+				g_filename = File.name();
+				
+				if(nImages==0)
+				{
+					warning("Please open an image or stack");
+					run("Close");
+				}
+				else if(bitDepth!=24)
+				{	
+					warning("Please open a RGB image");
+					run("Close");
+				}
+				else
+				{	
+					rename(g_rgbstackname);
+					selectWindow(g_rgbstackname);
+					//print(g_DirKI67_StackTemp+g_rgbstackname);
+					//exit();
+					save(g_DirKI67_StackTemp+g_rgbstackname);
+					bGoodcase=getBoolean("Good case ?");
+					run("Close");
+				}
+				
+				if(!bGoodcase)  showStatus("So it is a wrong picture ... repeat the opening step");
+				
+				setBatchMode(true);
+				
+				if(bGoodcase)
+				{	
+					g_bCaseStudyInitiated = true; // will be turn to false when final result are printed
+					set_operatorANDtarget();
+					  
+					  s1 = "MESSAGE *** PLEASE WAIT ***.\n";
+					  s2 = "Processing Color deconvolution\n";
+					  s3 = "Saving DAB images \n";
+					  s4 = "Saving Keratin images \n";
+					  s5 = "Saving Binary Keratin images \n";
+					    requires("1.38m");
+					    title1 = "Messages to operator";
+					    title2 = "["+title1+"]";
+					    f = title2;
+					    if (isOpen(title1))
+					    	    print(f, "\\Update:"); // clears the window
+					    else
+					    	    run("Text Window...", "name="+title2+" width=72 height=8 menu");
+
+
+					
+					print(f,s1+s2);
+					cleanUp_Windows();
+					open(g_DirKI67_StackTemp+g_rgbstackname);
+					
+					//run("Colour Deconvolution", "vectors=RedDab");					
+					run("Colour Deconvolution", "vectors=[User values] [r1]=gR1 [g1]=gG1 [b1]=gB1 [r2]=gR2 [g2]=gG2 [b2]=gB2 [r3]=gR3 [g3]=gG3 [b3]=gB3");
+					
+					print(f,s3);
+					selectImage(g_rgbstackname+"-(Colour_1)");
+					rename(g_dabstackname);
+					save(g_DirKI67_StackTemp+g_dabstackname);
+
+					print(f,s4);
+					selectImage(g_rgbstackname+"-(Colour_2)");
+					rename(g_keratstackname);
+					save(g_DirKI67_StackTemp+g_keratstackname);
+					
+					print(f,s5);		
+					selectImage(g_keratstackname);					
+					run("Median...", "radius=5 stack");
+					run("Convert to Mask", "method=MaxEntropy background=Light");
+					save(g_DirKI67_StackTemp+g_keratBINstackname);
+					
+					cleanUp_Windows();
+					beep();
+					selectWindow("Messages to operator");
+					run("Close");
+
+					showMessage("<html>"
+					+"<h3>Intermediate tasks DONE</h3>"
+					+"<h3>Please proceed to Tumour or Nuclei mask</h3>"
+					+"<h3>creation</h3>");
+					close_auxiliary_windows();
+					
+
+	
+					//close();
+					
+				}
+			
+			}
+		
+
+		
+}
+
+
+
+macro "Create Tumour Mask Action Tool - Cf00D02D11D12D20D21D22D30D31D38D39D3aD40D47D48D49D56D57D58D66D67D75D76Db6Dc5DcdDdcDddDdeDedDeeCfffD54D88D96DbfDc0Dd7De6Cf55D55Dd4Cf11D77D85Db7Dc6DceDd5CfccD19D1aDbcDebCf00D03D29D65D68CfaaD94D9cDa8DcbCf22D32D41Da1Da7Db1CfeeD73D83D97Da3Dc1DdaDe4DfcCf88D3bD9bDb2DfdCf22D13D46D59D84Da2Db5CfddD14D33D51Da0CfbbD2bD95Cf33D28DdbCfeeD18D79D8dD93Cf77D23D50Dd6Cf11D01D10D2aD37D4aDccCfccD45D87D91Db4De5CfaaD64D69Dc7DcfDffCf33D74Cf99D8bCfbbD00D04D27D42D4bDa5Db0DbeCf55Da6DfeCf66D78D8cDc4Cf88DbdCf44DecDefCf77D86Cf99D36D5aD92Db8Cf66Ddf"{
+
+		if(!g_bInitialized) initialize();
+		
+		if(!File.exists(g_DirKI67_StackTemp+g_rgbstackname))
+		{
+			showMessage("Please first create or open a RGB stack");
+		}
+		else
+		{	
+			GetTumourMaskInverseSat();
+			
+			s1 = "MESSAGE *** PLEASE WAIT ***.\n";
+			s2 = "Hole filling process\n";
+			s3 = "Non tumoral component being removed \n";
+			requires("1.38m");
+			title1 = "Messages to operator";
+			title2 = "["+title1+"]";
+			f = title2;
+			if (isOpen(title1))
+				print(f, "\\Update:"); // clears the window
+			else
+				run("Text Window...", "name="+title2+" width=72 height=8 menu");
+		
+			print(f,s1+s2);			
+			removeHole();
+			print(f,s3);
+			removeNonKeratin();
+			beep();
+			selectWindow("Messages to operator");
+			run("Close");
+			
+			showMessage("<html>"
+			+"<h3>Tumour mask DONE</h3>"
+			+"<h3>Please proceed to Nuclei mask</h3>"
+			+"<h3>creation</h3>");
+
+			close_auxiliary_windows();
+
+
+		}
+		
+			
+		
+
+}
+
+
+macro "Create nuclei mask Action Tool - C000D00D12CcbbD67D78C876Da7CeeeD58D69C531Db6CdddD01D85Cba9D46CfffD02D32C200D8cCdccD21C987Db7CfeeD29D66DdfC655D13CdddD4aCcbaDccCfffD55D8dDa0Da5Dd6C000D39CdccD38Db5Dc6C877D23CeeeDb0C642Dc5CeddD86Da6DdeCbbaD9cCfffD31C300DeeCddcD48DcdDfeC987DddCffeD7bDd4C776D8bCeedDc4DffCcbbD47C976D57C531Db1CeddD10CbaaDb8C300D30CddcD9bC987Da2C865D49CeedD7cCcbaD20D40C200D22D68C887D76CeeeD77DedC643Da1CcbaD11Db2C421D56C988Da8C876DefCcbaDd5C643DdcCaa9D3aC876D75"{
+			if(!g_bInitialized) initialize();		
+	
+			if(!File.exists(g_DirKI67_StackTemp+g_rgbstackname))
+			{
+				showMessage("Please first create or open a RGB stack");
+			}
+			else
+			{	
+				GetNucleiMaskfromBrightness();
+
+			beep();
+			showMessage("<html>"
+			+"<h3>Nuclei (KI67) masks done</h3>"
+			+"<h3>Please proceed to Mask Inspection</h3>");
+				
+				close_auxiliary_windows();
+
+			}
+	
+}
+
+macro "Inspect results Action Tool - C111Df9C999D32C666D19D29D39D49D59Da9Db9Dc9Dd9DfcCeeeD0dD15De5DebDfdC444D69D99De3CcccDe2C777D1cD1dD7aD7bD8aD8bDecDedCfffD16D17D1aD2eD5eD7dD8dDaeDdeC333D06D07D0aD13CcccD03D12D28D38D48D58D68D78D88D98Da8Db8Dc8Dd8Df3C666D22Dd2CeeeD1bD3cD3eD4cD4eDbcDbeDccDceDe6De7DeaC555D0cD3dD4dD6cD9cDbdDcdDe9Df4CdddD2cD33D5cDacDc3DdcC888D6dD9dDd3C333D05D0bD79D89Df5Df6Df7DfaDfbCaaaD7cD8cC555D04D2dD5dDadDddC888D23Dc2C222Df8CaaaD6aD9aD9bCbbbDe8C111D09C999D14D6bDe4C222D08CbbbD18"{
+	if(!g_bInitialized) initialize();
+	if(!File.exists(g_DirKI67_StackTemp+g_rgbstackname))
+		{
+				showMessage("Please first create or open a RGB stack");
+		}
+	else if(!File.exists(g_DirKI67_StackTemp+g_TumourMaskFinal) || !File.exists(g_DirKI67_StackTemp+g_NucleiKI67MaskName))
+		{
+				showMessage("Please first generate Tumour and Nuclei masks");
+		}
+	else	{
+				
+				
+				open(g_DirKI67_StackTemp+g_TumourMaskFinal);
+				g_NumberInStack = nSlices; //initialization
+				close();
+				
+				setBatchMode(true);				
+				
+				for(k=0;k<g_NumberInStack;k++)
+				{	
+		
+					open(g_DirKI67_StackTemp+g_NucleiKI67MaskName,k+1);
+					rename("nuclei");
+					run("Invert");
+					
+					getLut(reds, greens, blues); //set nuclei to Brown					
+					reds[0] = 102;
+					greens[0] = 51;
+					blues[0] = 0;
+					setLut(reds, greens, blues);
+
+
+					open(g_DirKI67_StackTemp+g_TumourMaskFinal,k+1);
+					rename("tumour");
+					
+					getLut(reds, greens, blues); //set tumour to Red					
+					reds[255] = 222;
+					greens[255] = 59;
+					blues[255] = 59;
+					setLut(reds, greens, blues);
+					
+					
+					run("Add Image...", "image=nuclei x=0 y=0 opacity=100 zero");
+					run("Flatten");
+					//run("8-bit Color", "number=256");
+					save(g_DirKI67_SingleTemp+g_sample+k+".tif");
+					cleanUp_Windows();		
+		
+					
+				}
+				
+				
+				for(kk=0;kk<g_NumberInStack;kk++)
+				{	
+					open(g_DirKI67_SingleTemp+g_sample+kk+".tif");
+					
+				}
+		
+				run("Images to Stack", "name=Stack title=[] use");
+		
+				save(g_DirKI67_StackTemp+g_CompositeName);
+				cleanUp_Windows();
+				
+				
+				for(k=0;k<g_NumberInStack;k++)
+				{	
+					cleanUp_Windows();
+					setBatchMode(false);
+					open(g_DirKI67_StackTemp+g_rgbstackname,k+1);											
+					run("Set... ", "zoom=33");
+					setLocation(10,10);
+					call("ij.gui.ImageWindow.setNextLocation", 900, 10);
+					open(g_DirKI67_StackTemp+g_CompositeName,k+1);					 
+					run("Set... ", "zoom=33");	 
+					waitForUser("Please inspect and press OK to see the next one.... or cancel to exit macro");
+					
+				}
+				showMessage("<html>"
+				+"<h3>If you are happy with inspection</h3>"
+				+"<h3>Please proceed to Vv calculation</h3>"
+				+"<h3>... or re-do mask creation (nuclei or tumour)</h3>");
+
+				cleanUp_Windows();
+
+				
+
+
+
+		}
+	
+}
+
+
+macro "Compute Vv Ratio Action Tool - C15aD3fD4fD5fD6fD7fD8fD9fDafDbfDcfDdfC9dfD56D86C38cD49C26bD8aD99Da8CbefDd1Dd2C6beD77D87D97D98C16bD1fD2fD6cDeeDefCbefD31D32D41D42D51D52D61D62D71D72D81D82D91D92Da1Da2Db1Db2Dc1Dc2C3adD4cC29dD3dD4dDddCcefD21D22C8ceD2cC15aD1cD1dD1eD7cD8cD9cDacDbcDccDdcCbefD33D43D44D53D54D64D85C29dD5cC29dD3eD4eD5dD5eD6dD6eD7dD7eD8dD8eD9dD9eDadDaeDbdDbeDcdDceDdeC7ceD10D20D30D40D50D60D70D80D90Da0Db0Dc0Dd0C16bDedC5adD96C8ceD68CadfD23D55D65C39dD73D83D93Da3Db3Dc3Dd3C27cD57Db7C7beD12C26bD1bD7bDecC49dD13C8ceD3bD4aD59CbefD34C49dD24C26bD2aD39D3aD48C5beD79C8cfD76CadfD63D66C38cD35C6beDe1De2C3aeD2eD4bD5bD6bC39dD3cC26bD2bC4beD7aCbdfD75C28cD46Da6C7beD45C4aeD5aD69D6aC39dDe3C5beD78D88C38cD95C6ceD67Da7C4aeD2dC5beD89C38cD58C5adD74C7ceD11De0C38dD84"{
+	if(!g_bInitialized) initialize();
+	if(!File.exists(g_DirKI67_StackTemp+g_rgbstackname))
+		{
+				showMessage("Please first create or open a RGB stack");
+		}
+	else if(!File.exists(g_DirKI67_StackTemp+g_TumourMaskFinal) || !File.exists(g_DirKI67_StackTemp+g_NucleiKI67MaskName))
+		{
+				showMessage("Please first generate Tumour and Nuclei masks before computing Vv ratio");
+		}
+	else	{
+				
+				TumourArea = 0;
+				NucleiAreaTotal = 0;
+				NucleiAreaWithinTumour = 0;
+				
+				open(g_DirKI67_StackTemp+g_TumourMaskFinal);
+				g_NumberInStack = nSlices; //initialization
+				close();
+				
+				setBatchMode(true);
+				f = get_reference_table_results("KI67-TUMOUR Area V/V");
+				
+				
+				for(k=0;k<g_NumberInStack;k++)
+				{	
+					open(g_DirKI67_StackTemp+g_TumourMaskFinal,k+1);
+					rename("tumour");
+		
+					open(g_DirKI67_StackTemp+g_NucleiKI67MaskName,k+1);
+					rename("nuclei");
+		
+					imageCalculator("AND create", "tumour","nuclei");
+					selectWindow("Result of "+"tumour");
+					rename("nuclei_in_tumour");
+					
+					area = computeArea("tumour");
+					TumourArea += area;
+					area = computeArea("nuclei");
+					NucleiAreaTotal += area;
+					area = computeArea("nuclei_in_tumour");
+					NucleiAreaWithinTumour += area;
+					cleanUp_Windows();
+					close_auxiliary_windows();				
+				}
+				
+				NucleiAreaOutTumour = NucleiAreaTotal-NucleiAreaWithinTumour;
+				PercentageNucleiOutTumour = NucleiAreaOutTumour/NucleiAreaTotal*100;
+				ratioki67 = NucleiAreaWithinTumour/TumourArea*100;
+				
+				
+				print(f,g_filename+ "\t" +TumourArea+ "\t" +NucleiAreaWithinTumour+ "\t" + NucleiAreaOutTumour+ "\t" +NucleiAreaTotal+ "\t" +PercentageNucleiOutTumour + "\t" +g_NumberInStack+ "\t" +ratioki67);
+
+
+				
+				getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);								
+				resultline = toString(g_filename) + "," + toString(dayOfMonth)+ "," +toString(month+1) + "," +toString(year) + "," +toString(hour)+ ","+ toString(minute)+ "," +toString(gOperator) +  "," +toString(gTumourTarget)+ "," + toString(TumourArea,2) + "," + toString(NucleiAreaWithinTumour,2) + "," + toString(NucleiAreaOutTumour,2) + "," +toString(NucleiAreaTotal,2) + "," +toString(PercentageNucleiOutTumour,3) + "," +toString(g_NumberInStack,2)+ "," +toString(ratioki67,3);
+				File.append(resultline,gResultRoot+"KI67Results.csv");
+				
+				initialize();
+				
+				
+				
+				
+
+
+
+
+		}
+	
+}	
+
+
+var bCmds= newMenu("KI67: Settings Menu Tool", newArray("Define Some Demographics...","-","Define Color Deconvolution Params...","-","Reset Default Color Deconvolution Params..."));
+macro "KI67: Settings Menu Tool - C57bD2bD2cD3aD3dD49D4dD58D5cD67D6bD76D7aD87D89D98C777Da8C57cD3bD3cD4aD4cD59D5bD68D6aD77D79D88CbbbD84Dc7CaaaD85Da7Dc8C68dD4bD5aD69D78CcccD82C999Db8CcccD83D95Da6Dd7CaaaD73D96CdddD92D93Dd5C888D75D86D97CdddDc6Dd6C999D74CbbbDb7CeeeDa2" {
+cmd= getArgument();
+
+if (cmd!="-" && cmd == "Define Some Demographics...")
+{
+			  setparameters();			  
+
+}
+if (cmd!="-" && cmd == "Define Color Deconvolution Params...")
+{
+			 title = "Set vectors for color deconvolution";
+			  Dialog.create("Set Vectors");
+			  Dialog.addMessage("V1: Chromogen");			  
+			  Dialog.addNumber("[R1]", gR1);
+			  Dialog.addNumber("[G1]", gG1);
+			  Dialog.addNumber("[B1]", gB1);
+			  Dialog.addMessage("V2: Counterstain");			  
+			  Dialog.addNumber("[R2]", gR2);
+			  Dialog.addNumber("[G2]", gG2);
+			  Dialog.addNumber("[B2]", gB2);
+			  Dialog.addMessage("V3: Complementary");			  
+			  Dialog.addNumber("[R3]", gR3);
+			  Dialog.addNumber("[G3]", gG3);
+			  Dialog.addNumber("[B3]", gB3);	  
+			  Dialog.show();
+			  
+			  aR1 = Dialog.getNumber();
+			  aG1 = Dialog.getNumber();
+			  aB1 = Dialog.getNumber();
+			  aR2 = Dialog.getNumber();
+			  aG2 = Dialog.getNumber();
+			  aB2 = Dialog.getNumber();
+			  aR3 = Dialog.getNumber();
+			  aG3 = Dialog.getNumber();
+			  aB3 = Dialog.getNumber();
+			
+			 if((!isNaN(aR1)) && (!isNaN(aG1)) && (!isNaN(aB1)) && (!isNaN(aR2)) && (!isNaN(aG2)) && (!isNaN(aB2)) && (!isNaN(aR3)) && (!isNaN(aG3)) && (!isNaN(aB3)))
+			 {
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gR1",toString(aR1));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gG1",toString(aG1));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gB1",toString(aB1));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gR2",toString(aR2));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gG2",toString(aG2));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gB2",toString(aB2));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gR3",toString(aR3));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gG3",toString(aG3));
+			 call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gB3",toString(aB3));
+			 call("ij.Prefs.savePreferences"); // save preferences now
+			 setDeconvolutionVectorsFromPrefs();// replace with new values
+			 }
+			 else
+			 {
+			 	 warning("Values were not saved, please check integrity and retry");	  
+			 }
+	
+}
+
+if (cmd!="-" && cmd == "Reset Default Color Deconvolution Params...")
+{
+	setDeconvolutionVectorsFromDefault();
+	call("ij.Prefs.savePreferences"); // save preferences now	
+}
+
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////FUNCTION//////////////////////////////////////////////////////////////////////////////////////////
+//OPENING STACK MENU
+
+function openindividual() {
+	
+	if(g_NumberInStack == 0)
+		{warning("Please open first a stack"); exit();}
+	
+	cleanUp_Windows();
+	sample = g_DirKI67_StackTemp+"sample"+gIntRotateThroughSamples+".tif";
+	samplename = "sample"+gIntRotateThroughSamples+".tif";
+	number = gIntRotateThroughSamples;
+	open(sample);
+	setBatchMode(true);
+	gIntRotateThroughSamples++;
+	if(gIntRotateThroughSamples > g_NumberInStack) gIntRotateThroughSamples = 0;	
+	deconvolution(samplename);
+	setBatchMode(false);
+	g_individual_sample = g_DirKI67_StackTemp+"sample"+number+".tif";
+	g_name_individual_sample = "sample"+number+".tif";
+	cleanUp_Windows();
+	open(g_individual_sample);
+	g_bIndividualsample_opened = true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////FUNCTION//////////////////////////////////////////////////////////////////////////////////////////
+//SETUP MENU
+
+function initialize()
+{	
+	requires("1.49o"); //requires minimally imagej 1.49o
+	setOption("BlackBackground", false);
+	setOption("JFileChooser",false);
+	
+	g_DirParameters = getDirectory("imagej");
+	g_DirKI67_StackTemp = "KI67StackTemp"; //to store different stack images
+	g_DirKI67_SingleTemp = "KI67SingleTemp"; //to store individual image forming a given stack
+	g_DirKI67_BasicParameters = "KI67GeneralParameters"; //to store white image black image etc..
+
+	
+	g_DirKI67_StackTemp = g_DirParameters+g_DirKI67_StackTemp+File.separator;
+	//print(g_DirKI67_StackTemp);
+	//exit();	
+	File.makeDirectory(g_DirKI67_StackTemp); // to store stack images
+	
+	g_DirKI67_SingleTemp = g_DirParameters+g_DirKI67_SingleTemp+File.separator;	
+	File.makeDirectory(g_DirKI67_SingleTemp); // to store temporary files (individual image belonging to stack)
+	
+	g_DirKI67_BasicParameters = g_DirParameters+g_DirKI67_BasicParameters+File.separator;	
+	File.makeDirectory(g_DirKI67_BasicParameters); //to store white image black image etc..
+
+	if(!g_boolean_parameters_loaded) read_parameters();
+
+
+	cleanUp_Windows(); // close windows if any
+	
+	
+	if(!g_BetaDevelopment)
+	{
+	Remove_all_files_in(g_DirKI67_StackTemp,"tif"); //empty StackTempKI67 subdir	
+	Remove_all_files_in(g_DirKI67_SingleTemp,"tif"); //empty StackTemp subdir
+	close_auxiliary_windows();	
+	}
+	
+	
+	if(!File.exists(gResultRoot+"KI67Results.csv"))
+	{
+	headline =  "Filename"+ "," +"day"+ "," +"month"+ "," +"year"+ "," +"hour"+ "," +"minute"+ "," + "Operator" + "," + "TumourTarget" + "," + "TumourArea" + "," + "NucleiAreaWithinTumour" + "," + "NucleiAreaOutTumour" + "," +"NucleiAreaTotal" + "," +"PercentageNucleiOutTumour" + "," +"NumberMicroscopicFields"+ "," +"ratioki67";
+	File.append(headline,gResultRoot+"KI67Results.csv");
+	}
+	
+	g_bInitialized = true;
+	g_bCaseStudyInitiated = false;
+	g_NumberInStack = 0;
+
+	
+	
+		
+
+	
+
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////FUNCTION//////////////////////////////////////////////////////////////////////////////////////////
+//IMAGEJ ALGO FUNCTIONS
+function getTumourMask(sName,bBatchMode)
+{	
+
+	selectWindow(sName);
+	setBatchMode(bBatchMode);
+	run("HSB Stack");
+	run("Stack to Images");
+	selectWindow("Brightness");
+	close();
+	selectWindow("Hue");
+	close();
+	selectWindow("Saturation");
+	rename("TumourMask");
+	run("Enhance Contrast...", "saturated=0.4");
+	selectWindow("TumourMask");
+	run("Median...", "radius=5");
+	setAutoThreshold("Otsu");
+	setAutoThreshold("Otsu dark");		
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
+	run("Median...", "radius=5");
+	
+	fill_holes_in_mask("TumourMask");
+	setBatchMode(bBatchMode);
+	
+	return "TumourMask";
+	
+	
+}
+function getKI67Mask(bBatchMode)
+{	
+	saveSettings();
+	setBatchMode(bBatchMode);
+	get(gDAB);
+	rename("KI67Mask");
+	selectWindow("KI67Mask");
+	run("Median...", "radius=5");
+	setThreshold(gThresholdKI67AverageMIN, gThresholdKI67AverageMAX);
+	run("Convert to Mask");	
+	restoreSettings();
+
+	return "KI67Mask";
+	
+}
+
+function fill_holes_in_mask(a_window)
+	{	
+		setBatchMode(true);
+		saveSettings();
+		selectWindow(a_window);
+		
+		run("Duplicate...", "title=temp");
+		selectWindow("temp");
+		run("Invert");
+		run("Set Measurements...", "area redirect=None decimal=4");
+		run("Analyze Particles...", "size=0-2500 pixel circularity=0.00-1.00 show=Masks");
+		selectWindow("temp");
+		close();
+		selectWindow("Mask of temp");
+		imageCalculator("OR create", a_window,"Mask of temp");
+		selectWindow("Mask of temp");
+		close();
+		selectWindow(a_window);
+		close();		
+		selectWindow("Result of "+a_window);
+		rename(a_window);
+		restoreSettings();
+
+	}
+
+
+function getTotalArea(mask)
+{
+		saveSettings();
+		run("Set Measurements...", "area redirect=None decimal=4");
+		selectWindow(mask);
+		run("Analyze Particles...", "size=0-∞ circularity=0.00-1.00 show=Nothing display clear");
+		restoreSettings();
+		n = nResults; 
+		areas = newArray(n); 
+		//means = newArray(n);
+		for (i=0; i<n; i++) { 
+			areas[i] = getResult("Area", i); 
+			//means[i] = getResult("Mean", i); 
+		} 
+		sum_areas = 0;
+		//sum_integrated_intensity = 0;
+		//averave_intensity = 0;
+		for (i=0; i<n; i++)
+		{
+		   sum_areas += areas[i];
+		  // sum_integrated_intensity += (areas[i] * means[i]);
+		}
+	   
+		//averave_intensity = (sum_integrated_intensity / sum_areas);
+		//return averave_intensity;
+	return sum_areas;
+}
+function removeObjectOutsideMask(initial_img)
+{
+	saveSettings();
+	get(gREDMask);
+	setForegroundColor(255, 255, 255);
+	run("Set Measurements...", "  mean redirect=&gREDMask decimal=4");
+	selectWindow(initial_img);
+	run("Analyze Particles...", "size=0-Infinity circularity=0.00-1.00 show=[Overlay Outlines] display clear add");
+	n = nResults;
+	for (i=0; i<n; i++) 
+	{ 
+		mean = getResult("Mean", i);
+		if(mean ==0)
+		{
+		roiManager("Select", i);
+		roiManager("Fill");
+		}
+	}
+	run("Remove Overlay");
+	restoreSettings();
+	
+}
+function GetTumourMaskInverseSat() 
+{
+	setBatchMode(true);
+
+		open(g_DirKI67_StackTemp+g_rgbstackname);
+		g_NumberInStack = nSlices; //initialization
+		 run("HSB Stack");
+		 setSlice(2);
+		 run("Reduce Dimensionality...", "slices");
+		 run("Invert", "stack");
+		 rename(g_inverseSatName);
+		 save(g_DirKI67_StackTemp+g_inverseSatName);
+		 
+		 
+		
+		for(k=0;k<g_NumberInStack;k++)
+		{	
+			cleanUp_Windows();
+			open(g_DirKI67_StackTemp+g_inverseSatName,k+1);			
+			
+			run("Mean...", "radius=2");
+			run("Enhance Contrast...", "saturated=0.4");
+			rename("CURRENT");
+			snapshot;			
+			g_max = find_threshold_for_tumoral_mask("CURRENT");
+			reset;
+
+				{ // treatimage block
+				 setBatchMode(false);
+				 run("Set... ", "zoom=33");
+				 setLocation(10,10);
+				 call("ij.gui.ImageWindow.setNextLocation", 900, 10);
+				 
+				 open(g_DirKI67_StackTemp+g_rgbstackname,k+1);
+				 
+				run("Set... ", "zoom=33");	 
+				selectWindow("CURRENT");
+				//setAutoThreshold("MaxEntropy");
+				//run("Convert to Mask");
+				if (g_max != -1)
+				{
+				setThreshold(0,g_max);
+				}
+				else
+				{
+				setAutoThreshold("Yen");
+				getThreshold(g_min,g_max);
+				setThreshold(g_min,g_max);					
+				}
+				run("Threshold...");
+				waitForUser("set the threshold and press OK, or cancel to exit macro");
+				
+				setBatchMode(true);	
+				getThreshold(g_min,g_max);
+				selectWindow("CURRENT");
+				setThreshold(g_min,g_max);
+				run("Convert to Mask");
+				save(g_DirKI67_SingleTemp+g_sample+k+".tif");
+				cleanUp_Windows();	
+				}
+		}
+	
+	
+	
+		
+		
+		for(kk=0;kk<g_NumberInStack;kk++)
+		{	
+			open(g_DirKI67_SingleTemp+g_sample+kk+".tif");
+		}
+		
+		run("Images to Stack", "name=Stack title=[] use");
+		
+		save(g_DirKI67_StackTemp+g_TumourMaskDraft1Name);
+		cleanUp_Windows();
+	
+	
+	
+	
+        	
+}
+
+function removeHole()
+{
+	        		 	 
+        	call("java.lang.System.gc");
+        	wait(500);
+        	setBatchMode(true);
+
+	open(g_DirKI67_StackTemp+g_TumourMaskDraft1Name);
+	g_NumberInStack = nSlices; //initialization
+
+	
+	
+	
+ 		
+		
+		
+		for(k=0;k<g_NumberInStack;k++)
+		{	
+			cleanUp_Windows();			
+			open(g_DirKI67_StackTemp+g_TumourMaskDraft1Name,k+1);
+			rename("mask");
+			fill_holes_in_mask("mask");
+			selectWindow("mask");
+			save(g_DirKI67_SingleTemp+g_sample+k+".tif");			
+		}
+	
+	
+		
+		cleanUp_Windows();
+		for(kk=0;kk<g_NumberInStack;kk++)
+		{	
+			open(g_DirKI67_SingleTemp+g_sample+kk+".tif");
+		}
+		
+		run("Images to Stack", "name=Stack title=[] use");
+		
+		save(g_DirKI67_StackTemp+g_TumourMaskDraft2Name);
+		cleanUp_Windows();
+		
+
+	
+	
+	
+	
+	
+	
+        
+}
+function fill_holes_in_mask(a_mask)
+	{	
+		saveSettings();
+		close_auxiliary_windows();
+		roiManager("reset")
+
+		selectWindow(a_mask);
+		run("Duplicate...", "title=tempmask");
+		selectWindow("tempmask");
+		run("Invert");
+		setAutoThreshold("Default");
+		run("Convert to Mask");				
+		run("Analyze Particles...", "size=0-infinity circularity=0.00-1.00 show=Nothing display add clear");
+		
+
+		selectWindow("tempmask");
+		close();
+		
+		
+		n = nResults;
+		
+		
+		A_particles = newArray(n);
+		
+		for (i=0; i < n; i++) {
+			A_particles[i] = getResult("Area", i); 
+		}
+		
+		
+
+		if(A_particles.length > 5) iHigh_outlier_thresholdSize = outlier_threshold(A_particles,"outerHIGH");
+		else iHigh_outlier_thresholdSize = 0; // insufficient number of particles ... by setting iOutlier_thresholdSize = 0, all particles or holes will NOT be filled  
+
+		for (i=n-1; i >= 0; i--) {
+			area = getResult("Area", i);
+			if (area < iHigh_outlier_thresholdSize)
+				{
+					//do nothing and keep this particle (or hole) which will be filled
+				}
+			else
+				{
+				//remove this particle (or hole) which will be NOT be filled
+				roiManager("Select", i);
+				roiManager("Delete");									
+				}	
+		}
+ 
+		iParticles = roiManager("count");
+		if(iParticles > 0)
+		{
+			selectWindow(a_mask);
+			width = getWidth();
+			height = getHeight();
+			newImage("tempmask", "8-bit White", width, height, 1);
+			roiManager("Set Color", "black");
+			roiManager("Set Line Width", 1);
+			run("From ROI Manager");
+			run("Flatten");
+			selectWindow("tempmask");
+			close();
+			selectWindow("tempmask-1");
+			rename("tempmask");
+			selectWindow("tempmask");
+			run("Convert to Mask");
+			run("Fill Holes");
+			
+			
+			
+			imageCalculator("OR create", a_mask,"tempmask");
+			selectWindow("tempmask");
+			close();
+			selectWindow(a_mask);
+			close();		
+			selectWindow("Result of "+a_mask);
+			rename(a_mask);
+		}
+		restoreSettings();
+		close_auxiliary_windows();
+
+}
+function outlier_threshold(array,fence)
+{
+		if(array.length <=5) exit("code error: function outlier_threshold cannot be called with array containing less than 6 elements"); // iinsufficient number to establish Q1, Q2 and Q3 exit the macro a test should be done before to not enter the function if array.length <=5
+		if(fence != "innerHIGH" && fence != "outerHIGH" && fence != "innerLOW" && fence != "outerLOW" && fence != "Q1" && fence != "Q2" && fence != "Q3") exit("code error: function outlier_threshold has to be called with inner, outer, Q1 or Q3 values");
+		
+		Array.sort(array);
+		
+		middle = floor(array.length/2);
+		if(array.length%2 == 1) //modulo 1
+			{
+			q2 = array[middle];
+			middle1 = floor(array.length/4);
+			q1 = (array[middle1] + array[middle1+1])/2;
+			q3 = (array[middle+middle1] + array[middle+middle1+1])/2;
+			}
+		else//modulo 0
+			{
+			q2 = (array[middle] + array[middle+1])/2;
+			middle1 = floor(array.length/4);
+			q1 = array[middle1] ;
+			q3 = array[middle+middle1];
+			}
+			
+		interquartile_range = q3 - q1;
+		high_inner_fence = q3 + interquartile_range * 1.5; //see http://www.wikihow.com/Calculate-Outliers
+		low_inner_fence = q1 - interquartile_range * 1.5; //see http://www.wikihow.com/Calculate-Outliers
+		high_outer_fence = q3 + interquartile_range * 3; //see http://www.wikihow.com/Calculate-Outliers
+		low_outer_fence = q1 - interquartile_range * 3; //see http://www.wikihow.com/Calculate-Outliers
+		
+		
+		//print("Q1 = "+q1+" Q2 = "+q2+" Q3 = "+q3+" Interquartile = "+interquartile_range);
+		//waitForUser("click");
+
+		
+		
+		if(fence == "innerHIGH") return high_inner_fence;
+		if(fence == "outerHIGH") return high_outer_fence;
+		if(fence == "innerLOW") return low_inner_fence;
+		if(fence == "outerLOW") return low_outer_fence;
+		if(fence == "Q1") return q1;
+		if(fence == "Q2") return q2;
+		if(fence == "Q3") return q3;
+		
+		
+}
+function removeNonKeratin() //Remove particles which have no keratin component"
+{
+	
+	setBatchMode(true);
+	run("Set Measurements...", "area redirect=None decimal=3");
+	cleanUp_Windows();
+	 
+        	call("java.lang.System.gc"); 
+        	
+        	open(g_DirKI67_StackTemp+g_TumourMaskDraft2Name);
+	g_NumberInStack = nSlices; //initialization
+
+ 	
+ 		
+		for(k=0;k<g_NumberInStack;k++)
+		{	
+			
+		cleanUp_Windows();
+		open(g_DirKI67_StackTemp+g_TumourMaskDraft2Name,k+1);
+		rename("mask_in");
+		selectWindow("mask_in");
+		run("Duplicate...", "title=copy_in");
+		open(g_DirKI67_StackTemp+g_keratBINstackname,k+1);
+		rename("mask_kerat");
+ 	  	mask_result = remove_particles_without_keratin("mask_in","mask_kerat");
+ 	  	imageCalculator("XOR create", mask_result,"copy_in");
+ 	  	selectWindow("copy_in");
+ 	  	close();
+ 	  	selectWindow(mask_result);
+ 	  	close();
+ 	  	selectWindow("Result of "+mask_result);
+ 	  	rename(mask_result);	
+ 	  	selectWindow(mask_result);
+ 	  	save(g_DirKI67_SingleTemp+g_sample+k+".tif");		
+		}
+		
+		cleanUp_Windows();
+		
+	
+		for(kk=0;kk<g_NumberInStack;kk++)
+		{	
+			open(g_DirKI67_SingleTemp+g_sample+kk+".tif");
+		}
+		
+		run("Images to Stack", "name=Stack title=[] use");
+		
+		//saveAs("Tiff", dirOUT+global_array_file[i]);
+		save(g_DirKI67_StackTemp+g_TumourMaskFinal);
+		cleanUp_Windows();
+		
+
+	
+	
+	
+	
+	
+	
+        
+        
+		
+	
+}
+function remove_particles_without_keratin(maskIN,maskKERAT)
+	{	
+		saveSettings();
+		close_auxiliary_windows();
+		run("Options...", "iterations=1 count=1 edm=Overwrite");
+		
+		roiManager("reset")
+
+		selectWindow(maskIN);	
+		run("Set Measurements...", "mean redirect=&maskKERAT decimal=3");
+		//setAutoThreshold("Default");
+		run("Options...", "iterations=1 count=1 edm=Overwrite do=Nothing");
+		run("Analyze Particles...", "size=0-infinity circularity=0.00-1.00 show=Nothing display add clear");
+		
+		
+		n = nResults;
+		
+		A_particles = newArray(n);
+		
+		for (i=0; i < n; i++) {
+			A_particles[i] = getResult("Mean", i); 
+		}
+		
+		if(A_particles.length > 5) 
+			{
+				Q2 = outlier_threshold(A_particles,"Q2");
+				limit = 0.1*Q2;
+			}
+		
+		else	
+			{
+				iLow_outlier_thresholdSize = 0; // insufficient number of particles ... by setting iLow_outlier_thresholdSize = 0, all particles will be considered keratin positive
+			}
+		
+
+		for (i=n-1; i >= 0; i--) {
+			mean = getResult("Mean", i);
+			if (mean > limit) //OK  kerat positive this particle will be removed ... in order to NOT being deleted by logical operation
+				{
+				//print("low threshold = " + iLow_outlier_thresholdSize +" then "+ mean+" was removed");
+				roiManager("Select", i);
+				roiManager("Delete");									
+				}
+			else
+				{
+				//print("low threshold = " + iLow_outlier_thresholdSize +" then "+ mean+" was NOT removed");	
+				}	
+		}
+		
+		//waitForUser("click");
+ 
+		iParticles = roiManager("count");
+		if(iParticles > 0)
+		{
+			selectWindow(maskIN);
+			width = getWidth();
+			height = getHeight();
+			newImage("result", "8-bit White", width, height, 1);
+			roiManager("Set Fill Color", "black");
+			run("From ROI Manager");
+			roiManager("Fill");
+			roiManager("Show None");
+			run("Labels...", "color=white font=12");
+			run("Flatten");
+			selectWindow("result");
+			close();
+			selectWindow("result-1");
+			rename("result");
+			selectWindow("result");
+			
+			//run("8-bit");
+			//run("Options...", "iterations=1 count=1 edm=Overwrite");
+			//setOption("BlackBackground", false); //D
+			//run("Convert to Mask");
+			setOption("BlackBackground", false);
+			run("Make Binary");
+			
+			
+		}
+		else // no particles create notheless an empty image
+		{
+			selectWindow(maskIN);
+			width = getWidth();
+			height = getHeight();
+			newImage("result", "8-bit White", width, height, 1);
+			//run("8-bit");
+			//run("Convert to Mask");
+			setOption("BlackBackground", false);
+			run("Make Binary");
+
+
+
+		}
+		restoreSettings();
+		close_auxiliary_windows();
+		
+		return "result";
+
+	}
+	
+function GetNucleiMaskfromBrightness()
+{
+	setBatchMode(true);
+
+		open(g_DirKI67_StackTemp+g_rgbstackname);
+		g_NumberInStack = nSlices; //initialization	
+		
+		 run("HSB Stack");
+		 setSlice(3);
+		 run("Reduce Dimensionality...", "slices");
+		 
+		 rename(g_BrightnessName);
+		 save(g_DirKI67_StackTemp+g_BrightnessName);
+		
+		 
+		
+		for(k=0;k<g_NumberInStack;k++)
+		{	
+			cleanUp_Windows();
+			open(g_DirKI67_StackTemp+g_BrightnessName,k+1);			
+			
+			//run("Mean...", "radius=2");
+			rename("CURRENT");
+			snapshot;
+			
+			g_max = find_threshold_for_nuclei_mask("CURRENT");
+			reset;
+				{ // treatimage block
+				 setBatchMode(false);
+				 run("Set... ", "zoom=33");
+				 setLocation(10,10);
+				 call("ij.gui.ImageWindow.setNextLocation", 900, 10);
+				 
+				 open(g_DirKI67_StackTemp+g_rgbstackname,k+1);
+				 
+				run("Set... ", "zoom=33");	 
+				selectWindow("CURRENT");
+				if (g_max != -1)
+				{
+				setThreshold(0,g_max);
+				}
+				else
+				{
+				run("Median...", "radius=2");
+				setAutoThreshold("Intermodes");
+				getThreshold(g_min,g_max);
+				setThreshold(g_min,g_max);
+				//g_max = g_max-(floor(50*g_max/100));
+				}
+
+				run("Threshold...");
+				waitForUser("set the threshold and press OK, or cancel to exit macro");
+				
+				setBatchMode(true);	
+				getThreshold(g_min,g_max);
+				selectWindow("CURRENT");
+				setThreshold(g_min,g_max);
+				run("Convert to Mask");
+				save(g_DirKI67_SingleTemp+g_sample+k+".tif");
+				cleanUp_Windows();	
+				}
+		}
+	
+	
+	
+		
+		
+		for(kk=0;kk<g_NumberInStack;kk++)
+		{	
+			open(g_DirKI67_SingleTemp+g_sample+kk+".tif");
+		}
+		
+		run("Images to Stack", "name=Stack title=[] use");
+		
+		save(g_DirKI67_StackTemp+g_NucleiKI67MaskName);
+		cleanUp_Windows();
+		
+}
+ 
+function find_threshold_for_tumoral_mask(image)
+ {	 
+ 	 selectImage(image);
+ 	 run("Median...", "radius=10");
+ 	 getHistogram(values, histogram, 256);
+ 	 Inflexion_points = newArray(256);
+ 	 Array.fill(Inflexion_points,-1);
+ 	 number_of_inflexion_points = 0;
+ 	 
+ 	 trends = Array.copy(histogram);
+ 	 Array.fill(trends,0);
+ 	 
+ 	 for(i=0;i<255;i++) //differences in array so 225 and not 256
+ 	 {
+ 	 	 sum = histogram[i+1] - histogram[i];
+		 if(sum<0) trends[i] = -1;
+		 if(sum>0) trends[i] = 1;
+		 if(sum == 0) trends[i] = 0;   	 	 
+	 }
+
+	
+	 trend = trends[50]; //initialization
+	 
+	 for(i=51;i<240;i++) //will not inspect passed 250
+ 	 {
+ 	 	 if(trends[i] != trend) //do not want to investigate in the first 50
+ 	 	 {
+ 	 	 if(trends[i+1] != trend && trends[i+2] != trend && trends[i+3] != trend && trends[i+4] != trend &&
+ 	 	    trends[i+5] != trend && trends[i+6] != trend && trends[i+7] != trend && trends[i+8] != trend &&
+ 	    	    trends[i+9] != trend && trends[i+10] != trend && trends[i+11] != trend && trends[i+12] != trend) // verify it is a true trend
+ 	 	 	{
+ 	 	 	trend = trends[i];
+ 	 	 	Inflexion_points[i] = 1;
+ 	 	 	number_of_inflexion_points++;
+ 	 	 	}
+ 	 	 }
+	 }
+	 
+	 
+	 
+	if(number_of_inflexion_points < 3 ) return -1; // did not find a solution
+	
+	i=0;
+	
+	while(Inflexion_points[i] == -1) 
+	{
+		i++;
+	}
+	
+	while(Inflexion_points[i] == -1) 
+	{
+		i++;
+	}
+	
+	return i; // i should be the second inflexion
+
+	
+ 	   
+ }
+ 
+function find_threshold_for_nuclei_mask(image)
+ {	 
+ 	 selectImage(image);
+ 	 run("Median...", "radius=2");
+ 	 getHistogram(values, counts, 256);
+ 	 differences = newArray(256);
+ 	 Array.fill(differences,0);
+ 	 
+ 	 
+ 	 for(i=2;i<255;i++)
+ 	 {
+ 	 differences[i] = counts[i]-counts[i-1]; 	 
+ 	 }
+ 	
+ 	 /* 
+ 	 cursor=2; // just move forward the first count are frequently == 0
+ 	 while(differences[cursor] == 0)
+ 	 {
+ 	 	 if(cursor<255)
+ 	 	 	 {cursor++;}
+ 	 	 else
+ 	 	 	 {return -1;}
+ 	 }
+ 	 */
+ 	 cursor=100;
+ 	 start = cursor - 10; //initialize start
+ 	 increase=0; //initialize outlier
+ 	 slicedArray = Array.slice(differences,start,cursor);
+	 Array.getStatistics(slicedArray,min,max,mean,stdDev);
+ 	 mean1 = mean;
+ 	 
+ 	 print("Before entering Array analysis cursor = "+cursor);
+ 	 while(cursor < 255)
+ 	 {	 
+ 	 	 cursor++;
+ 	 	 start = cursor - 20;
+ 	 	 slicedArray = Array.slice(differences,start,cursor);
+		 Array.getStatistics(slicedArray,min,max,mean,stdDev);
+		 //print("cursor = "+cursor+" difference = " +differences[cursor]+" mean = "+mean+" 2*STD = "+2*stdDev);
+		 
+		 if(mean > mean1)
+		 {	
+		 	 print("cursor = "+cursor+" mean = "+mean+" mean1 = "+mean1);
+			 increase++;
+			 if(increase >= 3) 
+			 {
+			 print("I found perfect threshold = "+cursor-10);	 
+			 return cursor-5; //got it!
+			 }
+		 }
+		 else
+		 {
+		 	 increase = 0; //reinitialze to 0
+		 }
+		 
+		 mean1 = mean;
+		 
+ 	 }
+ 	 
+ 	 print("I did not found perfect threshold and return -1");
+ 	 return -1; //has failed so rturn -1
+
+	
+ 	   
+ }
+ 
+ function computeArea(someimage)
+{	
+		saveSettings();
+		
+		area = 0;
+		
+		run("Set Measurements...", "area redirect=None decimal=3");
+		selectWindow(someimage);
+		setAutoThreshold("Default");
+		run("Convert to Mask");		
+		run("Analyze Particles...", "size=0-∞ circularity=0.00-1.00 show=Nothing display clear");
+		n = nResults; 
+		area =0; 
+		for (i=0; i<n; i++) { 
+		area +=  getResult("Area", i);
+		} 
+
+		restoreSettings();
+				
+		return area;
+	
+}
+function drawWhiteBorder(width,height)
+{	
+	saveSettings();
+	setColor("white");
+	setLineWidth(1);
+	drawLine(0,0,width-1,0);
+	drawLine(width-1,0,width-1,height-1);
+	drawLine(width-1,height-1,0,height-1);
+	drawLine();	
+	updateDisplay();
+	restoreSettings;
+	
+}
+/////////////////////////////////////////////////////////////////////////////////////////FUNCTION//////////////////////////////////////////////////////////////////////////////////////////
+//SECTION: UTILITARY FUNCTIONS
+function find_first_number_in_string(a_string)
+{
+	if (lengthOf(a_string) > 0){
+			keep_on = true;
+			}
+	
+	while (isNaN(parseInt(a_string,10)) && keep_on)
+		{	
+			if (lengthOf(a_string) == 0){
+			keep_on = false;
+			}
+			else{
+			a_string = substring(a_string, 1, lengthOf(a_string));
+			}
+			
+		}
+	return parseInt(a_string,10);
+}
+function extract_number(a_string) //This function was added to extract special character like [ and ]
+{
+	temp =replace(a_string,"[^\\w\\s]", "");
+	temp1 = replace(temp,"Da", "");
+	return parseInt(temp1,10);
+}
+function warning(a_message)
+{
+	Dialog.create("WARNING!");
+	Dialog.addMessage(a_message);
+	Dialog.show();
+
+}
+function rename_and_save_images(new_identifier,a_newdir)
+	{
+	 for (i=1; i<=nImages(); i++)
+	 {
+	  selectImage(i);
+	  save(a_newdir+File.
+var g_parametersfile;separator+new_identifier+i+".tif");
+	 }
+}
+function cleanUp_Windows()
+{
+		requires("1.30e");
+		while (nImages()>0)
+		{
+			selectImage(nImages());  
+			run("Close");
+		}
+}
+
+
+
+function close_auxiliary_windows()
+{
+	  if (isOpen("ROI Manager")) {
+	  	  selectWindow("ROI Manager");
+	  	  run("Close");
+	  }
+	  if (isOpen("Results")) {
+	  	  selectWindow("Results");
+	  	  run("Close");
+	  }
+	  if (isOpen("Log")) {
+	  	  selectWindow("Log");
+	  	  run("Close");
+	  }
+	  if (isOpen("Threshold")) {
+	  	  selectWindow("Threshold");
+	  	  run("Close");
+	  }
+	  
+
+
+}
+function check_initialization()
+{
+	if(!g_bInitialized)
+		{
+			warning("Open first an Aperio folder or a stack");
+			exit();
+		}
+	else
+		{
+			//nothing keep on in the calling code
+		}
+		
+}
+function push(tempname)
+{
+	selectImage(tempname);
+	save(g_DirKI67_SingleTemp+tempname+".tif");
+	
+}
+function get(tempname)
+{
+	open(g_DirKI67_SingleTemp+tempname+".tif");
+	rename(tempname);
+}
+
+function FindQualifiedFilesIn(dir)
+{
+	list = getFileList(dir);
+	     for (i=0; i<list.length; i++)
+	     {
+		if (endsWith(list[i], "/"))
+		   FindQualifiedFilesIn(""+dir+list[i]);
+		else
+		{
+			//criteia of inclusion and exclusion
+			if(endsWith(toLowerCase(list[i]), "tif")) 
+				{
+				global_array_dir[global_i]=dir;
+				print(global_array_dir[global_i]);
+				global_array_file[global_i]=list[i];
+				print(global_i+":");
+				print(global_array_file[global_i]);
+				global_i++;
+				}
+		}
+	     }		
+			
+			
+	     return global_i;	
+}
+
+function Remove_all_files_in(dir,withextension)
+{
+
+	list = getFileList(dir);
+	     for (i=0; i<list.length; i++)
+	     {
+		if (endsWith(list[i], "/")) // this is a sub-directory
+		   Remove_all_files_in(""+dir+list[i],withextension); //call the function again targeting the found sub-directory
+		else
+		{
+			//criteia of inclusion and exclusion
+			if(endsWith(toLowerCase(list[i]), withextension)) 
+				{
+				File.delete(dir+list[i]);	
+				}
+		}
+	     }	
+	
+}
+
+function count_max_nb_files(dir) 
+{	
+		list = getFileList(dir);
+		for (i=0; i<list.length; i++) {
+			if (endsWith(list[i], "/"))
+				count_max_nb_files(""+dir+list[i]);
+			else
+				global_number_of_files++;
+		}
+ }
+function get_reference_table_results(title1)
+	{
+		requires("1.43g");
+		//title1 = "HER2 intensity(Signal Mask)";
+		title2 = "["+title1+"]";
+		f = title2;
+		if (isOpen(title1))
+		print(f, "\\Clear");
+		else {
+			if (getVersion>="1.41g")
+			run("Table...", "name="+title2+" width=1200 height=150");
+			else
+			run("New... ", "name="+title2+" type=Table width=1200 height=150");
+			}
+		print(f, "\\Headings:Case\tTotal Tumour\tTotal Nuclei in tumour\tTotal Nuclei out tumour\tTotal Nuclei\tPercentage Nuclei out\tNb microscopic fields\tRatio");
+		return f;
+	}
+ function checkiftreated(dirNucleiMasks,name)
+ {
+ 	 if(File.exists(dirNucleiMasks+name))
+ 	 {
+ 	 	 return true;
+ 	 }
+ 	 else
+ 	 {
+ 	 	 return false;
+ 	 }
+ }
+ function read_parameters()
+{
+	if(File.exists(g_DirKI67_BasicParameters+"parameters.txt"))
+	{
+		astring = File.openAsString(g_DirKI67_BasicParameters+"parameters.txt");
+		lines = split(astring,"\n");
+		gAccessionNumber = lines[0];
+		gPatientRoot = lines[1];
+		gResultRoot = lines[2];
+		gTumourTarget = lines[3];
+		gOperator = lines[4];		
+		g_boolean_parameters_loaded = true;
+	}
+	else 
+	{
+		warning("Missing important parameters\nClick on setup icon and\n\"Define Some Demographics\" to provide missing data");
+		exit();
+	}
+
+
+}
+
+function setparameters() {
+if(!g_boolean_parameters_loaded && File.exists(g_DirKI67_BasicParameters+"parameters.txt")) read_parameters();
+	do{
+		Dialog.create("MODIFYING PARAMETERS");
+		Dialog.addMessage("Patient root directory: "+gPatientRoot);
+		Dialog.addMessage("Result root directory: "+gResultRoot);
+		Dialog.addString("Accession number template: ", gAccessionNumber);
+		Dialog.addChoice("Tumour target", newArray("Periphery","Central"), gTumourTarget);
+		Dialog.addString("Please enter operator initials: ",gOperator);
+		Dialog.addCheckbox("Check to modify Patient root directory", false);
+		Dialog.addCheckbox("Check to modify Result root directory", false);
+		Dialog.addCheckbox("Check to get out of this menu", false);
+		Dialog.show();
+		
+		gAccessionNumber = Dialog.getString();
+		gTumourTarget = Dialog.getChoice();
+		gOperator = Dialog.getString();
+		bmodify_patient_root = Dialog.getCheckbox();
+		bmodify_result_root = Dialog.getCheckbox();		
+		b_getout = Dialog.getCheckbox();
+		
+		if(bmodify_patient_root){
+		gPatientRoot = getDirectory("Choose a PATIENTS Root Directory");
+		}
+		if(bmodify_result_root){
+		gResultRoot = getDirectory("Choose a RESULTS Root Directory");
+		}
+
+
+
+		write_parameters();
+	
+	} while(!b_getout)
+
+}
+function set_operatorANDtarget() {
+	do{
+		Dialog.create("Operator and Target");
+		Dialog.addChoice("Tumour target", newArray("Periphery","Central"), gTumourTarget);
+		Dialog.addString("Please enter operator initials: ",gOperator);
+		Dialog.addCheckbox("Check to get out of this menu", false);
+		Dialog.show();
+		
+		gTumourTarget = Dialog.getChoice();
+		gOperator = Dialog.getString();
+		b_getout = Dialog.getCheckbox();
+
+		write_parameters();
+	
+	} while(!b_getout)
+
+}
+function write_parameters()
+{
+	f=File.open(g_DirKI67_BasicParameters+"parameters.txt");
+	print(f,gAccessionNumber+"\n");
+	print(f,gPatientRoot+"\n");
+	print(f,gResultRoot + "\n");
+	print(f,gTumourTarget + "\n");
+	print(f,gOperator);	
+	File.close(f);
+	
+		
+	g_boolean_parameters_loaded = true;
+}
+function setDeconvolutionVectorsFromPrefs()
+ 	{
+	gR1=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gR1","")); //"" is the default value but should never be called. Inserted here to respect number of arguments 
+	gG1=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gG1",""));
+	gB1=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gB1",""));
+	gR2=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gR2",""));
+	gG2=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gG2",""));
+	gB2=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gB2",""));
+	gR3=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gR3",""));
+	gG3=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gG3",""));
+	gB3=parseFloat(call("ij.Prefs.get", "ki67breast.ihc.unit.vectors.deconvolution.gB3",""));	
+	}
+
+function setDeconvolutionVectorsFromDefault()
+ 	{
+	gR1=gR1default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gR1",toString(gR1));
+	gG1=gG1default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gG1",toString(gG1));
+	gB1=gB1default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gB1",toString(gB1));
+	gR2=gR2default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gR2",toString(gR2));
+	gG2=gG2default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gG2",toString(gG2));
+	gB2=gB2default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gB2",toString(gB2));
+	gR3=gR3default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gR3",toString(gR3));
+	gG3=gG3default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gG3",toString(gG3));
+	gB3=gB3default;
+	call("ij.Prefs.set", "ki67breast.ihc.unit.vectors.deconvolution.gB3",toString(gB3));	
+	}
+
+ 
