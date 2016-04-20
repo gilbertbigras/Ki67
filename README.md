@@ -38,8 +38,8 @@ Icon action | Description
 ![](/pictures/selector.png) | Select BreastKi67 to launch the BreastKi67 toolbar 
 ![](/pictures/camera.png) | This only works if a [Qimaging camera](http://www.qimaging.com/) is installed and associated AcquireQCam plugin is installed to capture image  
 ![](/pictures/key.png) | Open a stack of image. You can download and use a stack image sample (see below)  
-![](/pictures/cytokerat.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - if unsatisfactory, you adjust yourself).
-![](/pictures/ki67.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - if unsatisfactory, you adjust yourself).
+![](/pictures/cytokerat.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - if unsatisfactory, you can manually adjust the threshold yourself).
+![](/pictures/ki67.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - if unsatisfactory, you can manually adjust the threshold yourself).
 ![](/pictures/lunettes.png) | Verify the creates mask - if needed repeat previous steps.
 ![](/pictures/sigma.png) | Calculate the Vv ratio.
 ![](/pictures/setup.png) | Various setup - some sub-menu will require to check one box to exit (read labeling).
