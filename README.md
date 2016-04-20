@@ -46,9 +46,9 @@ Icon action | Description
 
 Image test and results
 -----------------
-You can use this small picture (sample.tif) to test the software.
+You can use this small [stack](/pictures/sample.tif) to test the software.
 
-<a href="url"><img src="/pictures/sample.tif" align="center" height="500" width="500" ></a> 
+<a href="url"><img src="/pictures/sample.jpg" align="center" height="500" width="500" ></a> 
 
 Feedback
 -----------------
