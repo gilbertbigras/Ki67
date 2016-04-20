@@ -36,7 +36,7 @@ Software utilization
 Icon action | Description
 ------------ | -------------
 ![](/pictures/selector.png) | Select BreastKi67 to launch the BreastKi67 toolbar 
-![](/pictures/camera.png) | This only works if a Qimaging camera is installed and associated  
+![](/pictures/camera.png) | This only works if a [Qimaging camera](http://www.qimaging.com/) is installed and associated AcquireQCam plugin is installed to capture image  
 ![](/pictures/key.png) | Open a stack of image. You can download and use "sample.tif" (see below)  
 ![](/pictures/cytokerat.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will provide the best threshold).
 ![](/pictures/ki67.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will provide the best threshold).
@@ -47,7 +47,7 @@ Icon action | Description
 
 Image test and results
 -----------------
-You can use this small [stack](/pictures/sample.tif) to test the software.
+You can use this small [stack](/pictures/sample.tif) to test the software. A minimum of 2 pictures is expected per stack. The following picture is a representation of the stack.
 
 <a href="url"><img src="/pictures/sample.jpg" align="center" height="500" width="500" ></a> 
 
