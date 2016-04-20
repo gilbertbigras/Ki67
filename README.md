@@ -28,7 +28,7 @@ Operator is expected to grab multiple areas of viable tumour with maximal prolif
 
 Operator is expected to grab a picture with a priori correction of background illumination as explained [here] (http://imagejdocu.tudor.lu/doku.php?id=howto:working:how_to_correct_background_illumination_in_brightfield_microscopy) by Gabriel Landini.
 
-This involves multiple steps a) Image acquisition of a white field without oversaturation and white balance of RGB channels b) Image acquisition of a black field c) Image acquisition of the tissue specimen and d) the correction itself. These steps are available in the offered software if you use Qimaging Camera. If not the code could be adapted using a different camera and for instance a TWAIN plugin: see [here](https://imagej.nih.gov/ij/plugins/index.html#acq). This requires help from IT person or familiar with ImageJ and coding.
+This involves multiple steps a) Image acquisition of a white field without oversaturation and white balance of RGB channels b) Image acquisition of a black field c) Image acquisition of the tissue specimen and d) the correction itself. These steps are available in the offered software if you use a Qimaging Camera. If not, the code could be adapted using a different camera and for instance a TWAIN plugin: see [here](https://imagej.nih.gov/ij/plugins/index.html#acq). This requires help from IT person or someone familiar with ImageJ and coding.
 Software utilization
 ---------------
 ![hello](/pictures/KI67BreastImageJ.png) 
@@ -47,7 +47,7 @@ Icon action | Description
 
 Image test and results
 -----------------
-You can use this small [stack](/pictures/sample.tif) to test the software. A minimum of 2 pictures is expected per stack. The following picture is a representation of the stack.
+You can use this small [stack](/pictures/sample.tif) to test the software. A minimum of 2 pictures is expected per stack. The following picture is only a representation of the stack available above.
 
 <a href="url"><img src="/pictures/sample.jpg" align="center" height="500" width="500" ></a> 
 
