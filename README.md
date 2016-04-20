@@ -37,17 +37,17 @@ Icon action | Description
 ------------ | -------------
 ![](/pictures/selector.png) | Select BreastKi67 to launch the BreastKi67 toolbar 
 ![](/pictures/camera.png) | This only works if a [Qimaging camera](http://www.qimaging.com/) is installed and associated AcquireQCam plugin is installed to capture image  
-![](/pictures/key.png) | Open a stack of image. You can download and use "sample.tif" (see below)  
-![](/pictures/cytokerat.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will provide the best threshold).
-![](/pictures/ki67.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will provide the best threshold).
+![](/pictures/key.png) | Open a stack of image. You can download and use a stack image sample (see below)  
+![](/pictures/cytokerat.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - you adjust yourself).
+![](/pictures/ki67.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - you adjust yourself).
 ![](/pictures/lunettes.png) | Verify the creates mask - if needed repeat previous steps.
 ![](/pictures/sigma.png) | Calculate the Vv ratio.
-![](/pictures/setup.png) | Various setup - aome menu will require to check one box to exit (read lableing).
+![](/pictures/setup.png) | Various setup - some sub-menu will require to check one box to exit (read labeling).
 
 
-Image test and results
+Stack Image sample
 -----------------
-You can use this small [stack](/pictures/sample.tif) to test the software. A minimum of 2 pictures is expected per stack. The following picture is only a representation of the stack available above.
+You can use this small [stack](/pictures/sample.tif) to test the software. A minimum of 2 pictures is expected per stack. The following picture is **only** a representation of the stack available above.
 
 <a href="url"><img src="/pictures/sample.jpg" align="center" height="500" width="500" ></a> 
 
