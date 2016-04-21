@@ -28,7 +28,7 @@ Operator is expected to grab multiple areas of viable tumour with maximal prolif
 
 Operator is expected to grab a picture with a priori correction of background illumination as explained [here] (http://imagejdocu.tudor.lu/doku.php?id=howto:working:how_to_correct_background_illumination_in_brightfield_microscopy) by Gabriel Landini.
 
-This involves multiple steps a) Image acquisition of a white field without oversaturation and white balance of RGB channels b) Image acquisition of a black field c) Image acquisition of the tissue specimen and d) the correction itself. These steps are available in the offered software if you use a Qimaging Camera. If not, the code could be adapted using a different camera and for instance a TWAIN plugin: see [here](https://imagej.nih.gov/ij/plugins/index.html#acq). This requires help from IT person or someone familiar with ImageJ and coding.
+This involves multiple steps a) Image acquisition of a white field without oversaturation and white balance of RGB channels b) Image acquisition of a black field c) Image acquisition of the tissue specimen and d) the correction itself. These steps are available in the current software if you use a Qimaging Camera. If not, the code could be adapted using a different camera and for instance a TWAIN plugin: see [here](https://imagej.nih.gov/ij/plugins/index.html#acq). This requires help from IT person or someone familiar with ImageJ and coding.
 Software utilization
 ---------------
 ![hello](/pictures/KI67BreastImageJ.png) 
@@ -36,7 +36,7 @@ Software utilization
 Icon action | Description
 ------------ | -------------
 ![](/pictures/selector.png) | Select BreastKi67 to launch the BreastKi67 toolbar 
-![](/pictures/camera.png) | This only works if a [Qimaging camera](http://www.qimaging.com/) and AcquireQCam plugins are installed.  
+![](/pictures/camera.png) | This only works if a [Qimaging camera](http://www.qimaging.com/) and AcquireQCam plugins are installed. (read paragraph above)  
 ![](/pictures/key.png) | Open a stack of image. You can download and use a stack image sample (see below)  
 ![](/pictures/cytokerat.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - if unsatisfactory, you can manually adjust the threshold yourself).
 ![](/pictures/ki67.png) | Under your surveillance assess the best cytokeratin mask (The algorithm will try to provide a good threshold - if unsatisfactory, you can manually adjust the threshold yourself).
